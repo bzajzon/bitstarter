@@ -22,10 +22,22 @@ References:
 */
 
 var fs = require('fs');
+var util = require('util');
 var program = require('commander');
 var cheerio = require('cheerio');
+var rest = require('restler');
+var sys = require('sys');
+
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
+var URL_DEFAULT = "http://boiling-lake-6603.herokuapp.com";
+var URLFILE_DEFAULT = "myurl.csv";
+
+var SYMBOLS_DEFAULT = ["GOOG", "FB", "AAPL", "YHOO", "MSFT", "LNKD", "CRM"];
+var COLUMNS_DEFAULT = 'snj1pr'; // http://greenido.wordpress.com/2009/12/22/yahoo-finance-hidden-api
+var HEADERS_DEFAULT = ["Symbol", "Name", "Market Cap", "Previous Close Price",
+                       "P/E Ratio", "Shares", "EPS", "Earnings"];
+
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
@@ -61,12 +73,44 @@ var clone = function(fn) {
     return fn.bind({});
 };
 
+var myurl = function(url) {
+    return url.toString();
+};
+
+
+var buildfn = function(csvfile, headers) {
+    var response2console = function(result, response) {
+        if (result instanceof Error) {
+            console.error('Error: ' + util.format(response.message));
+        } else {
+            console.error("Wrote %s", csvfile);
+            fs.writeFileSync(csvfile, result);
+        }
+    };
+    return response2console;
+};
+
+
+var saveUrlToFile = function(url, urlfile) {
+    url = url || URL_DEFAULT;
+    urlfile = urlfile || URLFILE_DEFAULT;
+    var apiurl = myurl(url);
+    var response2console = buildfn(urlfile);
+    rest.get(apiurl).on('complete', response2console);
+};
+
+
 if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+        .option('-u, --url <url>', 'http://boiling-lake-6603.herokuapp.com')
         .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
+
+var url = program.url;
+saveUrlToFile(url);
+    var urlFile= URLFILE_DEFAULT;
+    var checkJson = checkHtmlFile(urlFile, program.checks);
     var outJson = JSON.stringify(checkJson, null, 4);
     console.log(outJson);
 } else {
